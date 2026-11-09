@@ -1014,7 +1014,14 @@ function popupHtml(p){
       (p.subcat ? ' · '+p.subcat : '')+
       (p.io ? ' · '+p.io : '')+'</span><br>'+
     fee+(p.heat>0 ? ' · 热度×'+p.heat : '')+
-    (p.address ? '<div style="margin-top:2px"><b>导航地址：</b><a href="https://uri.amap.com/marker?position='+p.lng+','+p.lat+'&name='+encodeURIComponent(p.name)+'" target="_blank">'+p.address+'</a></div>' : '')+
+    (p.address
+      ? '<div style="margin-top:6px">'+
+        '<a href="https://uri.amap.com/navigation?to='+p.lng+','+p.lat+','+encodeURIComponent(p.name)+'&mode=car&policy=0&src=scplacepicker&coordinate=gaode&callnative=1" '+
+          'style="display:inline-block;background:#00b140;color:#fff;padding:7px 16px;border-radius:18px;text-decoration:none;font-weight:bold;font-size:14px">🚗 高德导航</a> '+
+        '<a href="https://uri.amap.com/marker?position='+p.lng+','+p.lat+'&name='+encodeURIComponent(p.name)+'" target="_blank" style="color:#1976d2;font-size:12px">查看位置</a>'+
+        '</div>'+
+        '<div style="margin-top:2px;color:#999;font-size:12px">'+p.address+'</div>'
+      : '')+
     (p.phone ? '<div style="margin-top:2px"><b>电话：</b>'+p.phone+'</div>' : '')+
     pf + pit +
     (p.mom ? '<div style="margin-top:2px;color:#555">'+p.mom+'</div>' : '')+
