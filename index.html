@@ -705,10 +705,19 @@ html,body{margin:0;height:100%;font-family:-apple-system,"Microsoft YaHei",sans-
 .cat-node .view.on{opacity:1;font-weight:bold;color:#d32f2f;}
 .cat-node input[type=checkbox]{flex:0 0 auto;margin:0;}
 .cat-child{border-left:1px dashed #eee;margin-left:6px;}
+#overlay{display:none;}
+#drawerToggle{display:none;}
+#closeDrawer{display:none;}
+#drawerHandle{display:none;}
 @media (max-width:600px){
-  #app{flex-direction:column;}
-  #side{width:100%;min-width:0;height:45%;}
-  #map{height:55%;}
+  #app{display:block;height:100vh;position:relative;}
+  #map{height:100vh;width:100%;}
+  #side{position:fixed;left:0;right:0;bottom:0;height:62%;min-width:0;width:100%;z-index:1000;border-right:none;border-top:1px solid #ddd;border-radius:14px 14px 0 0;box-shadow:0 -2px 12px rgba(0,0,0,.25);transform:translateY(100%);transition:transform .25s ease;display:flex;flex-direction:column;}
+  #side.open{transform:translateY(0);}
+  #drawerToggle{display:flex;position:fixed;top:12px;right:12px;z-index:1001;align-items:center;gap:4px;padding:8px 14px;background:#fff;color:#1976d2;border:1px solid #ddd;border-radius:20px;font-size:14px;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+  #overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.3);z-index:999;}
+  #closeDrawer{display:block;position:absolute;top:6px;right:10px;padding:3px 12px;border:1px solid #ccc;border-radius:14px;background:#fff;font-size:12px;color:#555;cursor:pointer;}
+  #drawerHandle{display:block;width:40px;height:4px;border-radius:2px;background:#ccc;margin:6px auto 2px;}
 }
 </style>
 </head>
@@ -716,6 +725,8 @@ html,body{margin:0;height:100%;font-family:-apple-system,"Microsoft YaHei",sans-
 <div id="banner"><span class="close" onclick="this.parentNode.style.display='none'">&times;</span><b id="bannerTitle"></b><span id="bannerMsg"></span></div>
 <div id="app">
   <div id="side">
+    <div id="drawerHandle"></div>
+    <button id="closeDrawer" type="button">收起</button>
     <div class="hd">
       <h1>四川省玩乐地点选点器</h1>
       <div id="filters">
@@ -740,6 +751,8 @@ html,body{margin:0;height:100%;font-family:-apple-system,"Microsoft YaHei",sans-
     <div id="foot">已选 <b id="cnt">0</b> 处 · 本页 <span id="total">0</span> 处</div>
   </div>
   <div id="map"></div>
+  <div id="overlay"></div>
+  <div id="drawerToggle">☰ 选点</div>
 </div>
 <script>
 /* @preserve
@@ -762,6 +775,7 @@ if (PLACES.length && PLACES[0] && ('n' in PLACES[0])) {
 PLACES.forEach(function(p, i){ p.id = i; });
 var PIN_CITY = "";
 var SHOW_ALL_CTRL = true;
+var isMobile = window.matchMedia && window.matchMedia('(max-width:600px)').matches;
 function isPlay(t){ return t === '现代休闲' || t === '亲子' || t === '运动'; }
 function isDiscount(t){ return t === '折扣购物' || t === '折扣仓'; }
 function isCanteen(t){ return t === '助餐点'; }
@@ -967,17 +981,22 @@ function computeSeq(){
   });
 }
 function badgeLabel(p){ return seqLabel[p.id] || ''; }
-function badgeW(p){ return Math.max(22, badgeLabel(p).length * 8 + 6); }
+function badgeH(){ return isMobile ? 16 : 22; }
+function badgeW(p){ return Math.max(badgeH(), badgeLabel(p).length * (isMobile ? 6 : 8) + (isMobile ? 4 : 6)); }
 function badgeHtml(p){
   var label = badgeLabel(p);
   var w = badgeW(p);
-  return '<div style="background:'+p.color+';color:#fff;width:'+w+'px;height:22px;'+
-    'border-radius:11px;display:flex;align-items:center;justify-content:center;'+
-    'font-size:10px;font-weight:bold;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)">'+label+'</div>';
+  var h = badgeH();
+  var fs = isMobile ? 8 : 10;
+  var bw = isMobile ? 1 : 2;
+  return '<div style="background:'+p.color+';color:#fff;width:'+w+'px;height:'+h+'px;'+
+    'border-radius:'+(h/2)+'px;display:flex;align-items:center;justify-content:center;'+
+    'font-size:'+fs+'px;font-weight:bold;border:'+bw+'px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)">'+label+'</div>';
 }
 function markerIcon(p){
   var w = badgeW(p);
-  return L.divIcon({className:'', html: badgeHtml(p), iconSize:[w,22], iconAnchor:[w/2,11]});
+  var h = badgeH();
+  return L.divIcon({className:'', html: badgeHtml(p), iconSize:[w,h], iconAnchor:[w/2,h/2]});
 }
 function refreshMarkers(){
   markers.forEach(function(m, id){
@@ -1139,7 +1158,13 @@ document.getElementById('clearBtn').addEventListener('click', function(){
   manualChecked.clear(); catSel.clear();
   recomputeChecked(); renderList(); renderCatTree();
 });
-document.getElementById('fitBtn').addEventListener('click', fitSelected);
+document.getElementById('fitBtn').addEventListener('click', function(){
+  fitSelected();
+  if(isMobile){
+    document.getElementById('side').classList.remove('open');
+    document.getElementById('overlay').style.display = 'none';
+  }
+});
 var catOpen = {};
 function renderCatTree(){
   var el = document.getElementById('catPanel');
@@ -1245,6 +1270,19 @@ document.getElementById('catBtn').addEventListener('click', function(){
   var show = p.style.display === 'none';
   p.style.display = show ? 'block' : 'none';
   if(show) renderCatTree();
+});
+
+document.getElementById('drawerToggle').addEventListener('click', function(){
+  document.getElementById('side').classList.add('open');
+  document.getElementById('overlay').style.display = 'block';
+});
+document.getElementById('closeDrawer').addEventListener('click', function(){
+  document.getElementById('side').classList.remove('open');
+  document.getElementById('overlay').style.display = 'none';
+});
+document.getElementById('overlay').addEventListener('click', function(){
+  document.getElementById('side').classList.remove('open');
+  document.getElementById('overlay').style.display = 'none';
 });
 
 renderCatTree();
