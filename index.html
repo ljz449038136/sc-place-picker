@@ -933,22 +933,21 @@ function filters(){
     showAll: document.getElementById('showAll').checked
   };
 }
-function hoursFilter(){
+var hoursState = {meals: [], days: []};
+function refreshHoursState(){
   var meals = [], days = [];
   document.querySelectorAll('.mealCb:checked').forEach(function(c){ meals.push(c.value); });
   document.querySelectorAll('.dayCb:checked').forEach(function(c){ days.push(c.value); });
-  return {meals: meals, days: days};
+  hoursState = {meals: meals, days: days};
 }
 function hoursActive(){
-  var h = hoursFilter();
-  return h.meals.length > 0 || h.days.length > 0;
+  return hoursState.meals.length > 0 || hoursState.days.length > 0;
 }
 function hoursHit(p){
   if(!hoursActive()) return true;
   if(!isCanteen(p.type)) return false;
-  var h = hoursFilter();
-  var mealOK = !h.meals.length || h.meals.some(function(m){ return (p.meals||'').indexOf(m) >= 0; });
-  var dayOK = !h.days.length || h.days.some(function(d){ return (p.open_days||'').indexOf(d) >= 0; });
+  var mealOK = !hoursState.meals.length || hoursState.meals.some(function(m){ return (p.meals||'').indexOf(m) >= 0; });
+  var dayOK = !hoursState.days.length || hoursState.days.some(function(d){ return (p.open_days||'').indexOf(d) >= 0; });
   return mealOK && dayOK;
 }
 function baseFiltered(){
@@ -1348,10 +1347,11 @@ document.getElementById('hoursBtn').addEventListener('click', function(){
 });
 document.getElementById('hoursClear').addEventListener('click', function(){
   document.querySelectorAll('.mealCb, .dayCb').forEach(function(c){ c.checked = false; });
+  refreshHoursState();
   recomputeChecked(); renderList(); renderCatTree();
 });
 document.querySelectorAll('.mealCb, .dayCb').forEach(function(c){
-  c.addEventListener('change', function(){ recomputeChecked(); renderList(); renderCatTree(); });
+  c.addEventListener('change', function(){ refreshHoursState(); recomputeChecked(); renderList(); renderCatTree(); });
 });
 
 document.getElementById('drawerToggle').addEventListener('click', function(){
