@@ -686,6 +686,7 @@ html,body{margin:0;height:100%;font-family:-apple-system,"Microsoft YaHei",sans-
 .item .heat{color:#e65100;font-size:11px;font-weight:bold;}
 .item .tier1{color:#b8860b;font-size:11px;}
 .item .tier2{color:#d32f2f;font-size:11px;}
+.list-more{text-align:center;color:#1976d2;padding:10px;font-size:13px;cursor:pointer;background:#f5f8ff;border-radius:6px;margin:6px 0;font-weight:bold;}
 #foot{padding:8px 10px;border-top:1px solid #eee;font-size:13px;color:#555;}
 #map{flex:1;height:100%;}
 #banner{display:none;position:fixed;top:0;left:0;right:0;z-index:10000;background:#d32f2f;color:#fff;padding:10px 14px;font-size:13px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.3);}
@@ -1143,71 +1144,68 @@ function updateCount(){
   document.getElementById('cnt').textContent = checked.size;
 }
 
-function makeCb(p){
-  var cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.checked = checked.has(p.id);
-  cb.addEventListener('change', function(){
-    if(cb.checked){ manualChecked.add(p.id); } else { manualChecked.delete(p.id); }
-    recomputeChecked(); renderList();
-  });
-  return cb;
+function escHtml(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function itemHtml(p){
+  var kids = childrenOf[p.name] || [];
+  var seq = seqLabel[p.id] || '';
+  var mo = p.months ? '<span class="mo">'+escHtml(p.months)+'</span>' : '';
+  var st = p.showtime ? '<span class="mo">'+escHtml(p.showtime)+'</span>' : '';
+  var sc = kids.length ? '<span class="sc">子'+kids.length+'</span>' : '';
+  var paid = p.paid ? '<span class="paid">S</span>' : '';
+  var heat = p.heat > 0 ? '<span class="heat">🔥×'+p.heat+'</span>' : '';
+  var chk = checked.has(p.id) ? ' checked' : '';
+  return '<div class="item" data-id="'+p.id+'">'+
+    '<input type="checkbox" data-id="'+p.id+'"'+chk+'>'+
+    '<span class="seq" style="background:'+p.color+'">'+seq+'</span>'+
+    '<span class="nm" data-id="'+p.id+'" title="'+escHtml(p.name)+'（点击定位）">'+escHtml(p.name)+mo+st+'</span>'+
+    sc+paid+heat+
+    '</div>';
 }
-function makeSeq(p){
-  var seq = document.createElement('span');
-  seq.className = 'seq';
-  seq.style.background = p.color;
-  seq.textContent = seqLabel[p.id] || '';
-  return seq;
-}
-function makeName(p){
-  var nm = document.createElement('span');
-  nm.className = 'nm';
-  nm.textContent = p.name;
-  nm.title = p.name + '（点击定位）';
-  nm.addEventListener('click', function(){ map.setView([p.lat, p.lng], 14); });
-  if(p.months){
-    var mo = document.createElement('span');
-    mo.className = 'mo';
-    mo.textContent = p.months;
-    nm.appendChild(mo);
+var LIST_PAGE = 200;
+var listShown = 0;
+function appendListBatch(list){
+  var el = document.getElementById('list');
+  var end = Math.min(listShown + LIST_PAGE, list.length);
+  var html = '';
+  for(var i = listShown; i < end; i++){ html += itemHtml(list[i]); }
+  listShown = end;
+  var more = document.getElementById('listMore');
+  if(more) more.remove();
+  el.insertAdjacentHTML('beforeend', html);
+  if(listShown < list.length){
+    var btn = document.createElement('div');
+    btn.id = 'listMore';
+    btn.className = 'list-more';
+    btn.textContent = '显示更多（剩余 ' + (list.length - listShown) + '）';
+    btn.addEventListener('click', function(){ appendListBatch(list); });
+    el.appendChild(btn);
   }
-  if(p.showtime){
-    var st = document.createElement('span');
-    st.className = 'mo';
-    st.textContent = p.showtime;
-    nm.appendChild(st);
-  }
-  return nm;
-}
-function addBadges(row, p, showHeat){
-  if(p.paid){ var s=document.createElement('span'); s.className='paid'; s.textContent='S'; row.appendChild(s); }
-  if(showHeat && p.heat > 0){ var h=document.createElement('span'); h.className='heat'; h.textContent='🔥×'+p.heat; row.appendChild(h); }
 }
 function renderList(){
   computeSeq();
   var list = filtered();
   var el = document.getElementById('list');
   el.innerHTML = '';
-  list.forEach(function(p){
-    var kids = childrenOf[p.name] || [];
-    var row = document.createElement('div');
-    row.className = 'item';
-    row.appendChild(makeCb(p));
-    row.appendChild(makeSeq(p));
-    row.appendChild(makeName(p));
-    if(kids.length){
-      var c = document.createElement('span');
-      c.className = 'sc';
-      c.textContent = '子'+kids.length;
-      row.appendChild(c);
-    }
-    addBadges(row, p, true);
-    el.appendChild(row);
-  });
+  listShown = 0;
+  appendListBatch(list);
   document.getElementById('total').textContent = list.length;
   refreshMarkers();
 }
+document.getElementById('list').addEventListener('click', function(e){
+  var nm = e.target && e.target.closest ? e.target.closest('.nm') : null;
+  if(nm && nm.dataset.id !== undefined){
+    var p = PLACES[+nm.dataset.id];
+    if(p) map.setView([p.lat, p.lng], 14);
+  }
+});
+document.getElementById('list').addEventListener('change', function(e){
+  var t = e.target;
+  if(t && t.type === 'checkbox' && t.dataset.id !== undefined){
+    var id = +t.dataset.id;
+    if(t.checked){ manualChecked.add(id); } else { manualChecked.delete(id); }
+    recomputeChecked(); renderList();
+  }
+});
 
 function fitSelected(){
   var arr = Array.from(checked).map(function(id){ return PLACES[id]; }).filter(Boolean);
